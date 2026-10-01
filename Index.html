@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitCommand Supreme</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --accent-glow: rgba(59, 130, 246, 0.3);
+      --text: #f8fafc; --subtext: #94a3b8; --success: #10b981; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 40px; }
+    h1, h2, h3 { font-weight: 700; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .title { font-size: 1.4rem; color: var(--accent); letter-spacing: 0.5px; }
+    .btn { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-success { background: var(--success); }
+    .input { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 8px; width: 100%; margin-bottom: 8px; font-size: 0.95rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ai-badge { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+    .log-box { font-size: 0.9rem; line-height: 1.5; white-space: pre-line; color: #e2e8f0; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title">FITCOMMAND <span style="font-size: 0.8rem; color: var(--subtext);">v10 AI</span></div>
+    <button class="btn btn-secondary" onclick="toggleSettings()" style="font-size: 0.8rem; padding: 6px 12px;">⚙️ Key</button>
+  </div>
+
+  <!-- API KEY SETTINGS -->
+  <div id="settingsCard" class="card hidden">
+    <h3>Gemini API Setup</h3>
+    <p style="font-size:0.8rem; color:var(--subtext); margin: 6px 0 12px;">Paste your Google AI Studio API key below for automated AI analysis.</p>
+    <input type="password" id="apiKeyInput" class="input" placeholder="AIzaSy..." />
+    <button class="btn" onclick="saveApiKey()" style="width:100%;">Save Key</button>
+  </div>
+
+  <!-- AI COACH FEEDBACK DASHBOARD -->
+  <div class="card" style="border-color: #3b82f6;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <span class="ai-badge">AI Performance Coach</span>
+      <span id="aiStatus" style="font-size: 0.75rem; color: var(--subtext);">Ready</span>
+    </div>
+    <div id="aiAnalysisOutput" class="log-box">Log your workout or scan a meal below. Your post-workout analysis and macros will instantly generate here.</div>
+  </div>
+
+  <!-- NUTRITION & FOOD CAMERA SCANNER -->
+  <div class="card">
+    <h3>Nutrition & Meal Photo Log</h3>
+    <div style="margin-top: 10px;">
+      <input type="text" id="foodInput" class="input" placeholder="e.g., 2 eggs, 2 slices whole wheat toast" />
+      <div class="grid-2">
+        <label class="btn btn-secondary" style="margin-bottom:8px;">
+          📷 Photo
+          <input type="file" id="foodPhoto" accept="image/*" capture="environment" class="hidden" onchange="handleFoodPhoto(event)">
+        </label>
+        <button class="btn btn-success" onclick="logFoodText()" style="margin-bottom:8px;">Log Food</button>
+      </div>
+    </div>
+    <div id="dailyTotals" style="margin-top: 8px; font-weight: 600; font-size: 0.9rem; color: var(--subtext);">
+      Today: 0 / 2,100 kcal (0g P | 0g C | 0g F)
+    </div>
+  </div>
+
+  <!-- WORKOUT LOGGING ENGINE -->
+  <div class="card">
+    <h3>Log Workout Session</h3>
+    <div style="margin-top: 10px;">
+      <select id="exerciseSelect" class="input">
+        <option value="Bench Press">Bench Press</option>
+        <option value="Deadlift">Deadlift</option>
+        <option value="Shoulder Press (Machine)">Shoulder Press (Machine)</option>
+        <option value="Leg Press">Leg Press</option>
+        <option value="Seated Row">Seated Row</option>
+        <option value="Lat Pulldown">Lat Pulldown</option>
+      </select>
+      <div class="grid-2">
+        <input type="number" id="weightInput" class="input" placeholder="Weight (lbs)" />
+        <input type="number" id="repsInput" class="input" placeholder="Reps" />
+      </div>
+      <input type="number" id="rpeInput" class="input" placeholder="RPE / Effort (1-10)" min="1" max="10" />
+      <button class="btn" onclick="addSetToSession()" style="width:100%; margin-bottom:8px;">+ Add Set</button>
+    </div>
+
+    <div id="sessionSets" style="margin: 12px 0; font-size: 0.85rem; color: var(--subtext);">No sets added yet.</div>
+    <button class="btn btn-success" onclick="finishAndAnalyzeWorkout()" style="width:100%;">Save & Run AI Analysis</button>
+  </div>
+
+  <script>
+    let currentSession = [];
+    let dailyMacros = { kcal: 0, p: 0, c: 0, f: 0 };
+
+    window.onload = function() {
+      if (!localStorage.getItem('gemini_api_key')) {
+        document.getElementById('settingsCard').classList.remove('hidden');
+      } else {
+        document.getElementById('apiKeyInput').value = localStorage.getItem('gemini_api_key');
+      }
+    };
+
+    function toggleSettings() {
+      document.getElementById('settingsCard').classList.toggle('hidden');
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if(key) {
+        localStorage.setItem('gemini_api_key', key);
+        document.getElementById('settingsCard').classList.add('hidden');
+        alert('API Key Saved!');
+      }
+    }
+
+    function addSetToSession() {
+      const ex = document.getElementById('exerciseSelect').value;
+      const w = document.getElementById('weightInput').value;
+      const r = document.getElementById('repsInput').value;
+      const rpe = document.getElementById('rpeInput').value || '8';
+
+      if (!w || !r) return alert('Please enter weight and reps');
+
+      currentSession.push({ exercise: ex, weight: w, reps: r, rpe: rpe });
+      renderSessionSets();
+      document.getElementById('weightInput').value = '';
+      document.getElementById('repsInput').value = '';
+    }
+
+    function renderSessionSets() {
+      const container = document.getElementById('sessionSets');
+      if (currentSession.length === 0) {
+        container.innerHTML = "No sets added yet.";
+        return;
+      }
+      container.innerHTML = currentSession.map((s, i) => 
+        `<div>${i+1}. <b>${s.exercise}</b>: ${s.weight} lbs × ${s.reps} reps (RPE ${s.rpe})</div>`
+      ).join('');
+    }
+
+    async function callGemini(contents, systemInstruction) {
+      const apiKey = localStorage.getItem('gemini_api_key');
+      if (!apiKey) {
+        alert('Please configure your Gemini API Key first.');
+        document.getElementById('settingsCard').classList.remove('hidden');
+        return null;
+      }
+
+      document.getElementById('aiStatus').innerText = "Analyzing...";
+      
+      const payload = {
+        contents: contents,
+        systemInstruction: { parts: [{ text: systemInstruction }] }
+      };
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        document.getElementById('aiStatus').innerText = "Ready";
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+          return data.candidates[0].content.parts[0].text;
+        } else {
+          throw new Error('Invalid response structure');
+        }
+      } catch (e) {
+        document.getElementById('aiStatus').innerText = "Error";
+        alert('Gemini API Error: ' + e.message);
+        return null;
+      }
+    }
+
+    async function finishAndAnalyzeWorkout() {
+      if (currentSession.length === 0) return alert('Add at least one set before saving.');
+
+      const workoutText = currentSession.map(s => `${s.exercise}: ${s.weight} lbs x ${s.reps} (RPE ${s.rpe})`).join('\n');
+      
+      const systemPrompt = `You are FitCommand AI Performance Coach. Profile: 45 y/o male, 190 lbs, 22.6% BF, 0.5 lb/week deficit target. Goal: Bench 225 lbs, Deadlift 315 lbs. Rep progression model builds to top of range before load increases; 6-week deload cycle. Avoid squats/Smith. Direct, punchy analysis.`;
+      const userPrompt = `Analyze this completed workout session:\n\n${workoutText}\n\nProvide: 1) Progression & Tonnage Audit, 2) Next-Session Weight Targets, 3) Recovery & Fatigue Check.`;
+
+      const analysis = await callGemini([{ parts: [{ text: userPrompt }] }], systemPrompt);
+      if (analysis) {
+        document.getElementById('aiAnalysisOutput').innerText = analysis;
+        currentSession = [];
+        renderSessionSets();
+      }
+    }
+
+    async function handleFoodPhoto(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onloadend = async function() {
+        const base64Data = reader.result.split(',')[1];
+        const mimeType = file.type;
+
+        const systemPrompt = `You are a precision nutritional analyst. Analyze the provided meal image, estimate calories, protein (g), carbs (g), and fat (g). Return a short bulleted breakdown followed by a line formatted exactly as: TOTALS: [kcal] kcal, [p]g P, [c]g C, [f]g F.`;
+
+        const contents = [{
+          parts: [
+            { inlineData: { mimeType: mimeType, data: base64Data } },
+            { text: "Analyze this meal photo and estimate calories and macronutrients." }
+          ]
+        }];
+
+        const analysis = await callGemini(contents, systemPrompt);
+        if (analysis) {
+          document.getElementById('aiAnalysisOutput').innerText = analysis;
+          
+          // Auto parse totals line
+          const match = analysis.match(/TOTALS:\s*(\d+)\s*kcal,\s*(\d+)g\s*P,\s*(\d+)g\s*C,\s*(\d+)g\s*F/i);
+          if (match) {
+            dailyMacros.kcal += parseInt(match[1]);
+            dailyMacros.p += parseInt(match[2]);
+            dailyMacros.c += parseInt(match[3]);
+            dailyMacros.f += parseInt(match[4]);
+            updateNutritionDisplay();
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function logFoodText() {
+      const food = document.getElementById('foodInput').value.trim();
+      if (!food) return;
+
+      const systemPrompt = `You are a precision nutritional analyst. Estimate calories, protein (g), carbs (g), and fat (g) for the given food text. Return a short breakdown followed by a line formatted exactly as: TOTALS: [kcal] kcal, [p]g P, [c]g C, [f]g F.`;
+
+      const analysis = await callGemini([{ parts: [{ text: `Analyze food text: ${food}` }] }], systemPrompt);
+      if (analysis) {
+        document.getElementById('aiAnalysisOutput').innerText = analysis;
+        const match = analysis.match(/TOTALS:\s*(\d+)\s*kcal,\s*(\d+)g\s*P,\s*(\d+)g\s*C,\s*(\d+)g\s*F/i);
+        if (match) {
+          dailyMacros.kcal += parseInt(match[1]);
+          dailyMacros.p += parseInt(match[2]);
+          dailyMacros.c += parseInt(match[3]);
+          dailyMacros.f += parseInt(match[4]);
+          updateNutritionDisplay();
+          document.getElementById('foodInput').value = '';
+        }
+      }
+    }
+
+    function updateNutritionDisplay() {
+      document.getElementById('dailyTotals').innerText = 
+        `Today: ${dailyMacros.kcal} / 2,100 kcal (${dailyMacros.p}g P | ${dailyMacros.c}g C | ${dailyMacros.f}g F)`;
+    }
+  </script>
+</body>
+</html>
